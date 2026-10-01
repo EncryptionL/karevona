@@ -188,7 +188,10 @@ private:
 
     Status migrate() {
         std::lock_guard<std::mutex> lock(mutex_);
-        PgResult r(PQexec(conn_, kSchemaMigration0001));
+        // Concurrent first-time connections race inside CREATE TABLE IF NOT EXISTS; serialize them. A multi-statement
+        // simple query runs as one implicit transaction, so the xact-scoped lock lasts until the DDL commits.
+        const std::string sql = std::string("SELECT pg_advisory_xact_lock(727274);\n") + kSchemaMigration0001;
+        PgResult r(PQexec(conn_, sql.c_str()));
         if (PQresultStatus(r.get()) != PGRES_COMMAND_OK) return error("migrate", r.get());
         return Status::ok();
     }
