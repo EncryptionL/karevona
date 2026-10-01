@@ -1,0 +1,60 @@
+syntax = "proto3";
+
+package karevona.v1;
+
+import "karevona/v1/common.proto";
+
+service NodeService {
+  rpc ListNodes(ListNodesRequest) returns (ListNodesResponse);
+  rpc GetNode(GetNodeRequest) returns (GetNodeResponse);
+  // Registers a node; returns a task that completes when the node is Ready.
+  rpc RegisterNode(RegisterNodeRequest) returns (RegisterNodeResponse);
+}
+
+enum NodeState {
+  NODE_STATE_UNSPECIFIED = 0;
+  NODE_STATE_DISCOVERED = 1;
+  NODE_STATE_REGISTERING = 2;
+  NODE_STATE_READY = 3;
+  NODE_STATE_DEGRADED = 4;
+  NODE_STATE_DRAINING = 5;
+  NODE_STATE_MAINTENANCE = 6;
+  NODE_STATE_OFFLINE = 7;
+}
+
+message Node {
+  string id = 1;
+  string name = 2;
+  Architecture architecture = 3;
+  string provider_id = 4;
+  uint32 cpu_cores = 5;
+  uint64 memory_bytes = 6;
+  bool kvm = 7;
+  bool nested_virtualization = 8;
+  NodeState state = 9;
+  CapabilitySet capabilities = 10;
+}
+
+message ListNodesRequest {
+  PageRequest page = 1;
+  Architecture architecture = 2;  // optional filter
+}
+message ListNodesResponse {
+  repeated Node nodes = 1;
+  PageInfo page = 2;
+}
+
+message GetNodeRequest {
+  string node_id = 1;
+}
+message GetNodeResponse {
+  Node node = 1;
+}
+
+message RegisterNodeRequest {
+  RequestMeta meta = 1;
+  Node node = 2;
+}
+message RegisterNodeResponse {
+  TaskRef task = 1;
+}

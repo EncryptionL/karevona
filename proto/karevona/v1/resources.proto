@@ -1,0 +1,30 @@
+syntax = "proto3";
+
+package karevona.v1;
+
+import "karevona/v1/common.proto";
+
+// Uniform read access to every managed object, regardless of provider.
+service ResourceService {
+  rpc ListResources(ListResourcesRequest) returns (ListResourcesResponse);
+  rpc GetResource(GetResourceRequest) returns (GetResourceResponse);
+}
+
+message ListResourcesRequest {
+  PageRequest page = 1;
+  ResourceKind kind = 2;           // optional filter
+  string provider_id = 3;          // optional filter
+  Architecture architecture = 4;   // optional filter
+  map<string, string> labels = 5;  // all must match
+}
+message ListResourcesResponse {
+  repeated Resource resources = 1;
+  PageInfo page = 2;
+}
+
+message GetResourceRequest {
+  string resource_id = 1;
+}
+message GetResourceResponse {
+  Resource resource = 1;
+}

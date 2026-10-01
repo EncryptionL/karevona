@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://karevona.io/schemas/v1/node.schema.json",
+  "title": "Node",
+  "type": "object",
+  "required": ["id", "architecture"],
+  "additionalProperties": false,
+  "properties": {
+    "id": { "$ref": "common.schema.json#/$defs/id" },
+    "name": { "type": "string" },
+    "architecture": { "$ref": "common.schema.json#/$defs/architecture" },
+    "provider": { "type": "string" },
+    "resources": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "cpuCores": { "type": "integer", "minimum": 0 },
+        "memoryBytes": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "kvm": { "type": "boolean" },
+    "nestedVirtualization": { "type": "boolean" },
+    "state": { "enum": ["discovered", "registering", "ready", "degraded", "draining", "maintenance", "offline"] },
+    "capabilities": { "$ref": "common.schema.json#/$defs/capabilities" }
+  }
+}

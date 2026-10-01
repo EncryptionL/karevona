@@ -1,0 +1,229 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  IMAGE: karevona-dev-cpp:ci
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # C++: build + unit/simulation/integration tests in the dev image, with a real
+  # PostgreSQL. GCC and Clang on amd64; see cpp-arm64 for Aarch64.
+  # ---------------------------------------------------------------------------
+  cpp:
+    name: C++ (${{ matrix.compiler }}, amd64)
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { compiler: gcc,   cc: gcc,   cxx: g++ }
+          - { compiler: clang, cc: clang, cxx: clang++ }
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: karevona
+          POSTGRES_PASSWORD: karevona
+          POSTGRES_DB: karevona
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U karevona -d karevona"
+          --health-interval 3s --health-timeout 3s --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Resolve runner uid/gid
+        id: ids
+        run: |
+          echo "uid=$(id -u)" >> "$GITHUB_OUTPUT"
+          echo "gid=$(id -g)" >> "$GITHUB_OUTPUT"
+      - name: Build dev image
+        uses: docker/build-push-action@v6
+        with:
+          context: docker/cpp
+          load: true
+          tags: ${{ env.IMAGE }}
+          build-args: |
+            USER_UID=${{ steps.ids.outputs.uid }}
+            USER_GID=${{ steps.ids.outputs.gid }}
+          cache-from: type=gha,scope=cpp-amd64
+          cache-to: type=gha,scope=cpp-amd64,mode=max
+      - name: Build and test
+        run: |
+          docker run --rm --network host \
+            -v "$PWD:/workspace" \
+            -e CC=${{ matrix.cc }} -e CXX=${{ matrix.cxx }} \
+            -e BUILD_DIR=build-${{ matrix.compiler }} \
+            -e KAREVONA_TEST_POSTGRES_CONNINFO="host=localhost user=karevona password=karevona dbname=karevona" \
+            "$IMAGE" ./scripts/ci-build.sh
+
+  # Aarch64 is a first-class target, so it is built and tested natively.
+  # GitHub only provides free arm64 runners for public repositories; the job is
+  # skipped for private ones (use a larger/self-hosted arm64 runner there).
+  cpp-arm64:
+    name: C++ (gcc, arm64)
+    runs-on: ubuntu-24.04-arm
+    if: ${{ !github.event.repository.private }}
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: karevona
+          POSTGRES_PASSWORD: karevona
+          POSTGRES_DB: karevona
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U karevona -d karevona"
+          --health-interval 3s --health-timeout 3s --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Resolve runner uid/gid
+        id: ids
+        run: |
+          echo "uid=$(id -u)" >> "$GITHUB_OUTPUT"
+          echo "gid=$(id -g)" >> "$GITHUB_OUTPUT"
+      - name: Build dev image
+        uses: docker/build-push-action@v6
+        with:
+          context: docker/cpp
+          load: true
+          tags: ${{ env.IMAGE }}
+          build-args: |
+            USER_UID=${{ steps.ids.outputs.uid }}
+            USER_GID=${{ steps.ids.outputs.gid }}
+          cache-from: type=gha,scope=cpp-arm64
+          cache-to: type=gha,scope=cpp-arm64,mode=max
+      - name: Build and test
+        run: |
+          docker run --rm --network host \
+            -v "$PWD:/workspace" \
+            -e CC=gcc -e CXX=g++ -e BUILD_DIR=build-arm64 \
+            -e KAREVONA_TEST_POSTGRES_CONNINFO="host=localhost user=karevona password=karevona dbname=karevona" \
+            "$IMAGE" ./scripts/ci-build.sh
+
+  # ---------------------------------------------------------------------------
+  # Sanitizers (amd64): memory/UB errors and data races in the task engine,
+  # event bus and plugin manager.
+  # ---------------------------------------------------------------------------
+  sanitizers:
+    name: Sanitizer (${{ matrix.name }})
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: asan+ubsan, cc: gcc,   cxx: g++,     sanitize: "address;undefined" }
+          - { name: tsan,       cc: clang, cxx: clang++, sanitize: "thread" }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Resolve runner uid/gid
+        id: ids
+        run: |
+          echo "uid=$(id -u)" >> "$GITHUB_OUTPUT"
+          echo "gid=$(id -g)" >> "$GITHUB_OUTPUT"
+      - name: Build dev image
+        uses: docker/build-push-action@v6
+        with:
+          context: docker/cpp
+          load: true
+          tags: ${{ env.IMAGE }}
+          build-args: |
+            USER_UID=${{ steps.ids.outputs.uid }}
+            USER_GID=${{ steps.ids.outputs.gid }}
+          cache-from: type=gha,scope=cpp-amd64
+      - name: Lower ASLR entropy (required by TSan on recent kernels)
+        run: sudo sysctl vm.mmap_rnd_bits=28
+      - name: Build and test
+        run: |
+          docker run --rm --security-opt seccomp=unconfined --cap-add SYS_PTRACE \
+            -v "$PWD:/workspace" \
+            -e CC=${{ matrix.cc }} -e CXX=${{ matrix.cxx }} \
+            -e BUILD_TYPE=Debug -e SANITIZE="${{ matrix.sanitize }}" \
+            -e BUILD_DIR=build-san \
+            "$IMAGE" ./scripts/ci-build.sh
+
+  # ---------------------------------------------------------------------------
+  # Contracts: protobuf compiles and follows API conventions; JSON Schemas are
+  # valid and their examples conform (serializer output is checked in `cpp`).
+  # ---------------------------------------------------------------------------
+  contracts:
+    name: Protobuf and JSON Schemas
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install tooling
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends protobuf-compiler libprotobuf-dev python3-jsonschema python3-referencing
+      - name: Validate protobuf
+        run: ./scripts/validate-proto.sh
+      - name: Validate JSON Schemas and examples
+        run: python3 tools/validate_schemas.py --schemas schemas --examples schemas/examples
+
+  # ---------------------------------------------------------------------------
+  # Web console
+  # ---------------------------------------------------------------------------
+  web:
+    name: Web console
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build
+
+  # ---------------------------------------------------------------------------
+  # The development environment itself, exactly as a developer uses it:
+  # compose file is valid, images build, PostgreSQL/Valkey come up healthy, and
+  # the full check runs through ./scripts/dev.
+  # ---------------------------------------------------------------------------
+  dev-environment:
+    name: Docker dev environment
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Compose file is valid
+        run: docker compose -f deploy/dev/docker-compose.yml config --quiet
+      - name: Bring the environment up
+        run: |
+          export HOST_UID=$(id -u) HOST_GID=$(id -g)
+          docker compose -f deploy/dev/docker-compose.yml up -d --build --wait
+          docker compose -f deploy/dev/docker-compose.yml ps
+      - name: Toolchain is available in the dev container
+        run: |
+          ./scripts/dev run bash -c 'g++ --version | head -1 && clang++ --version | head -1 && cmake --version | head -1 && ninja --version && protoc --version && psql --version'
+      - name: Services are reachable from the dev container
+        run: |
+          ./scripts/dev run bash -c 'pg_isready -h postgres -U karevona -d karevona'
+      - name: Web tooling works in the web container
+        run: |
+          ./scripts/dev web bash -c 'node --version && npm ci --no-audit --no-fund && npm run typecheck && npm test'
+      - name: Full check through ./scripts/dev
+        run: ./scripts/dev ci
+      - name: Tear down
+        if: always()
+        run: ./scripts/dev down -v

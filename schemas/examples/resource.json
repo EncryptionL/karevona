@@ -1,0 +1,1 @@
+{ "id": "vm-001", "type": "vm", "provider": "proxmox", "architecture": "x86_64", "labels": { "environment": "production" } }

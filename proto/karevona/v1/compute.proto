@@ -1,0 +1,92 @@
+syntax = "proto3";
+
+package karevona.v1;
+
+import "karevona/v1/common.proto";
+
+service ComputeService {
+  rpc ListVms(ListVmsRequest) returns (ListVmsResponse);
+  rpc GetVm(GetVmRequest) returns (GetVmResponse);
+  rpc CreateVm(CreateVmRequest) returns (TaskResponse);
+  rpc StartVm(VmActionRequest) returns (TaskResponse);
+  rpc StopVm(VmActionRequest) returns (TaskResponse);
+  rpc DeleteVm(VmActionRequest) returns (TaskResponse);
+  // Rejected up front when architectures are incompatible (see ADR 0006).
+  rpc MigrateVm(MigrateVmRequest) returns (TaskResponse);
+}
+
+enum PowerState {
+  POWER_STATE_UNSPECIFIED = 0;
+  POWER_STATE_STOPPED = 1;
+  POWER_STATE_RUNNING = 2;
+  POWER_STATE_PAUSED = 3;
+}
+
+enum MigrationMode {
+  MIGRATION_MODE_UNSPECIFIED = 0;
+  MIGRATION_MODE_LIVE = 1;
+  MIGRATION_MODE_OFFLINE = 2;
+}
+
+message Vm {
+  string id = 1;
+  string name = 2;
+  Architecture architecture = 3;
+  string compute_provider_id = 4;
+  string host_node_id = 5;
+  PowerState power = 6;
+  uint32 vcpus = 7;
+  uint64 memory_bytes = 8;
+  string machine_type = 9;
+  repeated string volume_ids = 10;
+  repeated string network_ids = 11;
+}
+
+message VmSpec {
+  string name = 1;
+  Architecture architecture = 2;
+  uint32 vcpus = 3;
+  uint64 memory_bytes = 4;
+  string machine_type = 5;
+  string preferred_node_id = 6;
+  bool allow_emulation = 7;  // explicit opt-in; native placement is always preferred
+  repeated string volume_ids = 8;
+  repeated string network_ids = 9;
+}
+
+message TaskResponse {
+  TaskRef task = 1;
+}
+
+message ListVmsRequest {
+  PageRequest page = 1;
+  string node_id = 2;  // optional filter
+}
+message ListVmsResponse {
+  repeated Vm vms = 1;
+  PageInfo page = 2;
+}
+
+message GetVmRequest {
+  string vm_id = 1;
+}
+message GetVmResponse {
+  Vm vm = 1;
+}
+
+message CreateVmRequest {
+  RequestMeta meta = 1;
+  VmSpec spec = 2;
+}
+
+message VmActionRequest {
+  RequestMeta meta = 1;
+  string vm_id = 2;
+}
+
+message MigrateVmRequest {
+  RequestMeta meta = 1;
+  string vm_id = 2;
+  string destination_node_id = 3;
+  MigrationMode mode = 4;
+}

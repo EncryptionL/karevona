@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://karevona.io/schemas/v1/event.schema.json",
+  "title": "Event",
+  "description": "Something happened. Not a command and not the source of truth.",
+  "type": "object",
+  "required": ["eventId", "type", "timestamp"],
+  "additionalProperties": false,
+  "properties": {
+    "eventId": { "$ref": "common.schema.json#/$defs/id" },
+    "type": { "type": "string", "pattern": "^[A-Z][A-Za-z0-9]*$" },
+    "source": { "type": "string" },
+    "timestamp": { "$ref": "common.schema.json#/$defs/timestamp" },
+    "payload": { "type": "object" },
+    "schemaVersion": { "type": "integer", "minimum": 1 },
+    "trace": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "traceId": { "type": "string" },
+        "correlationId": { "type": "string" },
+        "causationId": { "type": "string" }
+      }
+    }
+  }
+}

@@ -1,0 +1,85 @@
+# Development environment: toolchain container + the services Karevona needs.
+# Use ./scripts/dev (it sets the project name and host uid/gid).
+name: karevona-dev
+
+services:
+  dev:
+    build:
+      context: ../../docker/cpp
+      args:
+        USER_UID: ${HOST_UID:-1000}
+        USER_GID: ${HOST_GID:-1000}
+    image: karevona-dev-cpp:local
+    working_dir: /workspace
+    volumes:
+      - ../..:/workspace
+      - ccache:/home/dev/.cache/ccache
+    environment:
+      KAREVONA_TEST_POSTGRES_CONNINFO: host=postgres user=karevona password=karevona dbname=karevona
+      KAREVONA_PERSISTENCE__BACKEND: postgres
+      KAREVONA_PERSISTENCE__POSTGRES__CONNINFO: host=postgres user=karevona password=karevona dbname=karevona
+      KAREVONA_VALKEY_URL: redis://valkey:6379
+    # Let gdb attach to processes in the container.
+    cap_add: [SYS_PTRACE]
+    security_opt: ["seccomp=unconfined"]
+    depends_on:
+      postgres: { condition: service_healthy }
+      valkey: { condition: service_healthy }
+    command: sleep infinity
+
+  web:
+    build:
+      context: ../../docker/web
+    image: karevona-dev-web:local
+    working_dir: /workspace/web
+    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+    volumes:
+      - ../..:/workspace
+    environment:
+      KAREVONA_API_URL: http://dev:8080
+      HOME: /tmp
+    ports:
+      - "3000:3000"
+    # `npm run dev` is started explicitly (./scripts/dev web npm run dev);
+    # the idle command keeps the container usable for npm/typecheck/test runs.
+    command: sleep infinity
+
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: karevona
+      POSTGRES_PASSWORD: karevona
+      POSTGRES_DB: karevona
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U karevona -d karevona"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  valkey:
+    image: valkey/valkey:8-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  # Optional local AI runtime for AI provider plugins: `./scripts/dev up --profile ai`
+  ollama:
+    profiles: ["ai"]
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama:/root/.ollama
+
+volumes:
+  ccache:
+  pgdata:
+  ollama:

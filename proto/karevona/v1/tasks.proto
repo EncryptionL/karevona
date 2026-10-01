@@ -1,0 +1,78 @@
+syntax = "proto3";
+
+package karevona.v1;
+
+import "google/protobuf/timestamp.proto";
+import "karevona/v1/common.proto";
+
+service TaskService {
+  rpc GetTask(GetTaskRequest) returns (GetTaskResponse);
+  rpc ListTasks(ListTasksRequest) returns (ListTasksResponse);
+  rpc CancelTask(CancelTaskRequest) returns (CancelTaskResponse);
+  // Streams a snapshot on every state or progress change until terminal.
+  rpc WatchTask(GetTaskRequest) returns (stream Task);
+}
+
+enum TaskState {
+  TASK_STATE_UNSPECIFIED = 0;
+  TASK_STATE_PENDING = 1;
+  TASK_STATE_RUNNING = 2;
+  TASK_STATE_SUCCEEDED = 3;
+  TASK_STATE_FAILED = 4;
+  TASK_STATE_CANCELLED = 5;
+  TASK_STATE_ROLLING_BACK = 6;
+  TASK_STATE_ROLLED_BACK = 7;
+  TASK_STATE_ROLLBACK_FAILED = 8;
+}
+
+enum TaskCause {
+  TASK_CAUSE_UNSPECIFIED = 0;
+  TASK_CAUSE_FAILED = 1;
+  TASK_CAUSE_CANCELLED = 2;
+  TASK_CAUSE_TIMED_OUT = 3;
+  TASK_CAUSE_DEPENDENCY_FAILED = 4;
+}
+
+message Task {
+  string id = 1;
+  string type = 2;
+  TaskState state = 3;
+  TaskCause cause = 4;
+  uint32 progress = 5;  // 0..100
+  string message = 6;
+  uint32 attempts = 7;
+  string subject = 8;
+  string actor = 9;
+  repeated string depends_on = 10;
+  string error_code = 11;
+  string error_message = 12;
+  string trace_id = 13;
+  google.protobuf.Timestamp created_at = 14;
+  google.protobuf.Timestamp started_at = 15;
+  google.protobuf.Timestamp finished_at = 16;
+}
+
+message GetTaskRequest {
+  string task_id = 1;
+}
+message GetTaskResponse {
+  Task task = 1;
+}
+
+message ListTasksRequest {
+  PageRequest page = 1;
+  TaskState state = 2;  // optional filter
+  string subject = 3;   // optional filter
+}
+message ListTasksResponse {
+  repeated Task tasks = 1;
+  PageInfo page = 2;
+}
+
+message CancelTaskRequest {
+  RequestMeta meta = 1;
+  string task_id = 2;
+}
+message CancelTaskResponse {
+  Task task = 1;
+}
