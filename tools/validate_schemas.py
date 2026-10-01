@@ -26,6 +26,17 @@ def load(path: Path):
         return json.load(f)
 
 
+def make_validator(schema, registry, store):
+    """jsonschema >= 4.18 resolves refs via `referencing`; older releases (Ubuntu 24.04's 4.10) need a RefResolver."""
+    try:
+        return Draft202012Validator(schema, registry=registry, format_checker=FormatChecker())
+    except TypeError:
+        from jsonschema import RefResolver  # deprecated in new releases, but only reached on old ones
+
+        resolver = RefResolver(schema.get("$id", ""), schema, store=store)
+        return Draft202012Validator(schema, resolver=resolver, format_checker=FormatChecker())
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--schemas", required=True, type=Path)
@@ -39,8 +50,10 @@ def main() -> int:
 
     # Schemas reference each other by $id-relative URIs; resolve them locally.
     registry = Registry()
+    store = {}
     for path in sorted(schema_dir.glob("*.schema.json")):
         schema = load(path)
+        store[schema["$id"]] = schema
         registry = registry.with_resource(schema["$id"], Resource.from_contents(schema, DRAFT202012))
 
     for path in sorted(schema_dir.glob("*.schema.json")):
@@ -51,9 +64,7 @@ def main() -> int:
             print(f"FAIL  schema {path.name}: {exc}")
             failures += 1
             continue
-        validators[path.name.removesuffix(".schema.json")] = Draft202012Validator(
-            schema, registry=registry, format_checker=FormatChecker()
-        )
+        validators[path.name.removesuffix(".schema.json")] = make_validator(schema, registry, store)
         print(f"ok    schema {path.name}")
 
     def check(path: Path, name: str, expect_valid: bool):
