@@ -10,7 +10,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         build-essential g++ gcc clang clang-format clang-tidy libclang-rt-18-dev lld \
         cmake ninja-build ccache pkg-config git ca-certificates curl \
         gdb valgrind \
-        libnlohmann-json3-dev libgtest-dev libgmock-dev \
+        nlohmann-json3-dev libgtest-dev libgmock-dev \
         protobuf-compiler protobuf-compiler-grpc libprotobuf-dev libgrpc++-dev \
         libpq-dev postgresql-client \
         python3 python3-jsonschema python3-referencing \
