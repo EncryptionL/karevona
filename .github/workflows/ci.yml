@@ -167,7 +167,7 @@ jobs:
       - name: Install tooling
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends protobuf-compiler python3-jsonschema python3-referencing
+          sudo apt-get install -y --no-install-recommends protobuf-compiler libprotobuf-dev python3-jsonschema python3-referencing
       - name: Validate protobuf
         run: ./scripts/validate-proto.sh
       - name: Validate JSON Schemas and examples
