@@ -1,0 +1,4 @@
+{
+  "id": "vm-001", "name": "application-01", "architecture": "x86_64", "computeProvider": "proxmox", "host": "node-01",
+  "vcpus": 8, "memoryBytes": 17179869184, "volumes": ["volume-001"], "networks": ["network-001"]
+}

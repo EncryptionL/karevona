@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://karevona.io/schemas/v1/resource.schema.json",
+  "title": "Resource",
+  "description": "Generic, provider-neutral envelope for any managed object.",
+  "type": "object",
+  "required": ["id", "type"],
+  "additionalProperties": false,
+  "properties": {
+    "id": { "$ref": "common.schema.json#/$defs/id" },
+    "type": {
+      "enum": ["cluster", "node", "provider", "vm", "container", "volume", "storage_pool", "snapshot", "backup",
+               "network", "nic", "incident", "policy", "scanner", "ai_provider"]
+    },
+    "name": { "type": "string" },
+    "provider": { "$ref": "common.schema.json#/$defs/id" },
+    "architecture": { "$ref": "common.schema.json#/$defs/architecture" },
+    "labels": { "$ref": "common.schema.json#/$defs/labels" },
+    "capabilities": { "$ref": "common.schema.json#/$defs/capabilities" },
+    "attributes": { "type": "object" },
+    "version": { "type": "integer", "minimum": 0 }
+  }
+}

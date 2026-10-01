@@ -1,0 +1,82 @@
+syntax = "proto3";
+
+package karevona.v1;
+
+import "karevona/v1/common.proto";
+
+service StorageService {
+  rpc ListPools(ListPoolsRequest) returns (ListPoolsResponse);
+  rpc ListVolumes(ListVolumesRequest) returns (ListVolumesResponse);
+  rpc CreateVolume(CreateVolumeRequest) returns (StorageTaskResponse);
+  rpc DeleteVolume(VolumeActionRequest) returns (StorageTaskResponse);
+  rpc AttachVolume(AttachVolumeRequest) returns (StorageTaskResponse);
+  rpc DetachVolume(VolumeActionRequest) returns (StorageTaskResponse);
+}
+
+enum VolumeState {
+  VOLUME_STATE_UNSPECIFIED = 0;
+  VOLUME_STATE_CREATING = 1;
+  VOLUME_STATE_AVAILABLE = 2;
+  VOLUME_STATE_ATTACHED = 3;
+  VOLUME_STATE_DEGRADED = 4;
+  VOLUME_STATE_REBUILDING = 5;
+  VOLUME_STATE_DELETING = 6;
+  VOLUME_STATE_DELETED = 7;
+}
+
+message StoragePool {
+  string id = 1;
+  string name = 2;
+  string provider_id = 3;
+  uint64 capacity_bytes = 4;
+  uint64 used_bytes = 5;
+}
+
+message Volume {
+  string id = 1;
+  string name = 2;
+  string provider_id = 3;
+  string pool_id = 4;
+  uint64 size_bytes = 5;
+  VolumeState state = 6;
+  string attached_vm_id = 7;
+}
+
+message StorageTaskResponse {
+  TaskRef task = 1;
+}
+
+message ListPoolsRequest {
+  PageRequest page = 1;
+}
+message ListPoolsResponse {
+  repeated StoragePool pools = 1;
+  PageInfo page = 2;
+}
+
+message ListVolumesRequest {
+  PageRequest page = 1;
+  string pool_id = 2;  // optional filter
+}
+message ListVolumesResponse {
+  repeated Volume volumes = 1;
+  PageInfo page = 2;
+}
+
+message CreateVolumeRequest {
+  RequestMeta meta = 1;
+  string name = 2;
+  string pool_id = 3;
+  uint64 size_bytes = 4;
+}
+
+message VolumeActionRequest {
+  RequestMeta meta = 1;
+  string volume_id = 2;
+}
+
+message AttachVolumeRequest {
+  RequestMeta meta = 1;
+  string volume_id = 2;
+  string vm_id = 3;
+}

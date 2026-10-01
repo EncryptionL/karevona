@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://karevona.io/schemas/v1/task.schema.json",
+  "title": "Task",
+  "type": "object",
+  "required": ["id", "type", "state"],
+  "additionalProperties": false,
+  "properties": {
+    "id": { "$ref": "common.schema.json#/$defs/id" },
+    "type": { "type": "string", "minLength": 1 },
+    "state": { "enum": ["pending", "running", "succeeded", "failed", "cancelled", "rolling_back", "rolled_back", "rollback_failed"] },
+    "cause": { "enum": ["none", "failed", "cancelled", "timed_out", "dependency_failed"] },
+    "progress": { "type": "integer", "minimum": 0, "maximum": 100 },
+    "message": { "type": "string" },
+    "attempts": { "type": "integer", "minimum": 0 },
+    "subject": { "type": "string" },
+    "actor": { "type": "string" },
+    "dependsOn": { "type": "array", "items": { "$ref": "common.schema.json#/$defs/id" } },
+    "error": {
+      "type": "object",
+      "required": ["code", "message"],
+      "additionalProperties": false,
+      "properties": { "code": { "type": "string" }, "message": { "type": "string" } }
+    },
+    "traceId": { "type": "string" },
+    "createdAt": { "$ref": "common.schema.json#/$defs/timestamp" },
+    "startedAt": { "$ref": "common.schema.json#/$defs/timestamp" },
+    "finishedAt": { "$ref": "common.schema.json#/$defs/timestamp" }
+  }
+}

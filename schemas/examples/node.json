@@ -1,0 +1,5 @@
+{
+  "id": "node-01", "name": "pve01", "architecture": "x86_64", "provider": "proxmox",
+  "resources": { "cpuCores": 32, "memoryBytes": 68719476736 },
+  "capabilities": ["compute.vm.create", "compute.vm.lifecycle", "storage.snapshot", "compute.vm.live_migration"]
+}

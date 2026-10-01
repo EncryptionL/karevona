@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+package karevona.v1;
+
+import "karevona/v1/common.proto";
+
+service ClusterService {
+  // Identity and version of the control plane serving the request.
+  rpc GetClusterInfo(GetClusterInfoRequest) returns (GetClusterInfoResponse);
+}
+
+message GetClusterInfoRequest {}
+
+message GetClusterInfoResponse {
+  string cluster_id = 1;
+  string name = 2;
+  string server_version = 3;
+  string api_version = 4;
+  // Architectures with at least one registered node.
+  repeated Architecture architectures = 5;
+  uint32 node_count = 6;
+}

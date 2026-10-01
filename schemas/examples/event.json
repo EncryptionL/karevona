@@ -1,0 +1,1 @@
+{ "eventId": "evt-0001", "type": "NodeFailed", "source": "node-01", "timestamp": "2026-10-01T00:00:00Z", "payload": { "reason": "heartbeat_timeout" } }

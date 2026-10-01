@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+# Developer entry point. Requires only Docker (with Compose v2) and Git.
+#
+#   ./scripts/dev up           start postgres, valkey and the dev containers
+#   ./scripts/dev shell        interactive shell in the C++ container
+#   ./scripts/dev build        configure + build (Ninja)
+#   ./scripts/dev test         run ctest (PostgreSQL integration tests included)
+#   ./scripts/dev ci           the full CI check (see scripts/ci-build.sh)
+#   ./scripts/dev web <cmd>    run a command in the web container (e.g. npm ci)
+#   ./scripts/dev run <cmd>    run any command in the C++ container
+#   ./scripts/dev down         stop everything       (down -v also drops data volumes)
+set -euo pipefail
+
+cd "$(dirname "${BASH_SOURCE[0]}")/.."
+export HOST_UID="${HOST_UID:-$(id -u)}"
+export HOST_GID="${HOST_GID:-$(id -g)}"
+COMPOSE=(docker compose -f deploy/dev/docker-compose.yml)
+BUILD_DIR=build-docker   # separate from any host build tree
+
+# No TTY (CI, pipes): disable pseudo-tty allocation.
+TTY=(); [[ -t 0 && -t 1 ]] || TTY=(-T)
+
+in_dev() { "${COMPOSE[@]}" exec -T dev "$@"; }
+
+cmd="${1:-help}"
+shift || true
+
+case "$cmd" in
+  up)      "${COMPOSE[@]}" up -d --build "$@" ;;
+  down)    "${COMPOSE[@]}" down "$@" ;;
+  shell)   "${COMPOSE[@]}" up -d --build dev && "${COMPOSE[@]}" exec ${TTY[@]+"${TTY[@]}"} dev bash ;;
+  run)     "${COMPOSE[@]}" up -d dev && "${COMPOSE[@]}" exec ${TTY[@]+"${TTY[@]}"} dev "$@" ;;
+  build)   "${COMPOSE[@]}" up -d --build dev && in_dev bash -c "cmake -S . -B ${BUILD_DIR} -G Ninja && cmake --build ${BUILD_DIR}" ;;
+  test)    "${COMPOSE[@]}" up -d --build dev && in_dev bash -c "cmake -S . -B ${BUILD_DIR} -G Ninja && cmake --build ${BUILD_DIR} && ctest --test-dir ${BUILD_DIR} --output-on-failure" ;;
+  ci)      "${COMPOSE[@]}" up -d --build dev && in_dev ./scripts/ci-build.sh "$@" ;;
+  web)     "${COMPOSE[@]}" up -d web && "${COMPOSE[@]}" exec ${TTY[@]+"${TTY[@]}"} web "$@" ;;
+  logs)    "${COMPOSE[@]}" logs -f "$@" ;;
+  help|-h|--help) sed -n '2,13p' "$0" ;;
+  *) echo "unknown command: $cmd (try ./scripts/dev help)" >&2; exit 2 ;;
+esac

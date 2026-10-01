@@ -1,0 +1,3 @@
+add_executable(karevona-controller main.cpp)
+target_link_libraries(karevona-controller PRIVATE karevona_api karevona_sim)
+karevona_configure_target(karevona-controller)

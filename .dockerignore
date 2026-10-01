@@ -1,0 +1,5 @@
+.git
+build
+build-*
+web/node_modules
+web/.next

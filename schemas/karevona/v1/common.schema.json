@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://karevona.io/schemas/v1/common.schema.json",
+  "title": "Karevona common definitions",
+  "$defs": {
+    "id": { "type": "string", "minLength": 1, "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$" },
+    "architecture": { "enum": ["unknown", "x86", "x86_64", "arm", "aarch64"] },
+    "capability": { "type": "string", "pattern": "^[a-z0-9_]+(\\.[a-z0-9_]+)+$" },
+    "capabilities": { "type": "array", "items": { "$ref": "#/$defs/capability" }, "uniqueItems": true },
+    "timestamp": { "type": "string", "format": "date-time" },
+    "labels": { "type": "object", "additionalProperties": { "type": "string" } }
+  }
+}

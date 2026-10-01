@@ -1,0 +1,53 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": { "major": 3, "minor": 25, "patch": 0 },
+  "configurePresets": [
+    {
+      "name": "dev",
+      "displayName": "Developer (RelWithDebInfo, warnings as errors)",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/dev",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "RelWithDebInfo", "KAREVONA_WERROR": "ON" }
+    },
+    {
+      "name": "debug",
+      "inherits": "dev",
+      "displayName": "Debug",
+      "binaryDir": "${sourceDir}/build/debug",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug" }
+    },
+    {
+      "name": "asan",
+      "inherits": "debug",
+      "displayName": "Debug + AddressSanitizer + UBSan",
+      "binaryDir": "${sourceDir}/build/asan",
+      "cacheVariables": { "KAREVONA_SANITIZE": "address;undefined" }
+    },
+    {
+      "name": "tsan",
+      "inherits": "debug",
+      "displayName": "Debug + ThreadSanitizer (Clang)",
+      "binaryDir": "${sourceDir}/build/tsan",
+      "cacheVariables": { "KAREVONA_SANITIZE": "thread", "CMAKE_CXX_COMPILER": "clang++" }
+    },
+    {
+      "name": "release",
+      "inherits": "dev",
+      "displayName": "Release",
+      "binaryDir": "${sourceDir}/build/release",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Release" }
+    }
+  ],
+  "buildPresets": [
+    { "name": "dev", "configurePreset": "dev" },
+    { "name": "debug", "configurePreset": "debug" },
+    { "name": "asan", "configurePreset": "asan" },
+    { "name": "tsan", "configurePreset": "tsan" },
+    { "name": "release", "configurePreset": "release" }
+  ],
+  "testPresets": [
+    { "name": "dev", "configurePreset": "dev", "output": { "outputOnFailure": true } },
+    { "name": "asan", "configurePreset": "asan", "output": { "outputOnFailure": true } },
+    { "name": "tsan", "configurePreset": "tsan", "output": { "outputOnFailure": true } }
+  ]
+}

@@ -1,0 +1,43 @@
+syntax = "proto3";
+
+package karevona.v1;
+
+import "karevona/v1/common.proto";
+
+service NetworkService {
+  rpc ListNetworks(ListNetworksRequest) returns (ListNetworksResponse);
+  rpc CreateNetwork(CreateNetworkRequest) returns (NetworkTaskResponse);
+  rpc DeleteNetwork(DeleteNetworkRequest) returns (NetworkTaskResponse);
+}
+
+message Network {
+  string id = 1;
+  string name = 2;
+  string provider_id = 3;
+  string cidr = 4;
+  uint32 vlan = 5;
+}
+
+message NetworkTaskResponse {
+  TaskRef task = 1;
+}
+
+message ListNetworksRequest {
+  PageRequest page = 1;
+}
+message ListNetworksResponse {
+  repeated Network networks = 1;
+  PageInfo page = 2;
+}
+
+message CreateNetworkRequest {
+  RequestMeta meta = 1;
+  string name = 2;
+  string cidr = 3;
+  uint32 vlan = 4;
+}
+
+message DeleteNetworkRequest {
+  RequestMeta meta = 1;
+  string network_id = 2;
+}
